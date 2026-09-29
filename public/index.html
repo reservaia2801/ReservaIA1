@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ReservaIA 2.0</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: Arial, sans-serif;
+      background: #f5f7fb;
+      color: #1f2937;
+    }
+
+    header {
+      background: #111827;
+      color: white;
+      padding: 22px;
+      text-align: center;
+    }
+
+    header h1 {
+      font-size: 30px;
+      margin-bottom: 8px;
+    }
+
+    header p {
+      opacity: .85;
+    }
+
+    .container {
+      max-width: 900px;
+      margin: 30px auto;
+      padding: 20px;
+    }
+
+    .hero {
+      background: white;
+      border-radius: 18px;
+      padding: 30px;
+      text-align: center;
+      box-shadow: 0 5px 20px rgba(0,0,0,.08);
+      margin-bottom: 25px;
+    }
+
+    .hero h2 {
+      font-size: 28px;
+      margin-bottom: 12px;
+    }
+
+    .hero p {
+      color: #6b7280;
+      line-height: 1.6;
+    }
+
+    .buttons {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 12px;
+      margin-top: 22px;
+    }
+
+    button, .whatsapp {
+      border: none;
+      border-radius: 10px;
+      padding: 14px 20px;
+      font-size: 16px;
+      cursor: pointer;
+      text-decoration: none;
+    }
+
+    .primary {
+      background: #111827;
+      color: white;
+    }
+
+    .secondary {
+      background: #e5e7eb;
+      color: #111827;
+    }
+
+    .whatsapp {
+      background: #25d366;
+      color: white;
+      display: inline-block;
+    }
+
+    .card {
+      background: white;
+      border-radius: 18px;
+      padding: 25px;
+      margin-bottom: 20px;
+      box-shadow: 0 5px 20px rgba(0,0,0,.06);
+    }
+
+    .card h3 {
+      margin-bottom: 15px;
+    }
+
+    input, select {
+      width: 100%;
+      padding: 13px;
+      margin: 7px 0 12px;
+      border: 1px solid #d1d5db;
+      border-radius: 9px;
+      font-size: 16px;
+    }
+
+    #respuesta {
+      margin-top: 15px;
+      padding: 15px;
+      background: #f3f4f6;
+      border-radius: 10px;
+      display: none;
+      line-height: 1.5;
+    }
+
+    footer {
+      text-align: center;
+      padding: 30px;
+      color: #6b7280;
+    }
+  </style>
+</head>
+
+<body>
+
+<header>
+  <h1>ReservaIA 2.0</h1>
+  <p>Reservas inteligentes con IA</p>
+</header>
+
+<div class="container">
+
+  <section class="hero">
+    <h2>Tu asistente de reservas 24/7</h2>
+    <p>
+      ReservaIA ayuda a tus clientes a consultar servicios,
+      encontrar horarios disponibles y solicitar reservas
+      automáticamente.
+    </p>
+
+    <div class="buttons">
+      <button class="primary" onclick="mostrarReserva()">
+        Reservar turno
+      </button>
+
+      <a
+        class="whatsapp"
+        href="https://wa.me/5491140940022"
+        target="_blank">
+        WhatsApp
+      </a>
+    </div>
+  </section>
+
+  <section class="card" id="reserva" style="display:none;">
+    <h3>Solicitar una reserva</h3>
+
+    <label>Nombre</label>
+    <input id="nombre" type="text" placeholder="Tu nombre">
+
+    <label>Servicio</label>
+    <select id="servicio">
+      <option value="">Selecciona un servicio</option>
+      <option>Corte de cabello</option>
+      <option>Barba</option>
+      <option>Corte + barba</option>
+    </select>
+
+    <label>Fecha</label>
+    <input id="fecha" type="date">
+
+    <label>Horario</label>
+    <select id="hora">
+      <option value="">Selecciona un horario</option>
+      <option>10:00</option>
+      <option>11:00</option>
+      <option>12:00</option>
+      <option>14:00</option>
+      <option>15:00</option>
+      <option>16:00</option>
+      <option>17:00</option>
+      <option>18:00</option>
+    </select>
+
+    <button class="primary" onclick="solicitarReserva()">
+      Solicitar reserva
+    </button>
+
+    <div id="respuesta"></div>
+  </section>
+
+  <section class="card">
+    <h3>Asistente IA</h3>
+
+    <p>
+      ¿Tienes alguna pregunta? ReservaIA podrá responder
+      automáticamente cuando conectemos la API de IA.
+    </p>
+
+    <input
+      id="pregunta"
+      type="text"
+      placeholder="Ej.: ¿Qué horarios tienen mañana?">
+
+    <button class="primary" onclick="preguntarIA()">
+      Preguntar a ReservaIA
+    </button>
+
+    <div id="respuestaIA"></div>
+  </section>
+
+</div>
+
+<footer>
+  ReservaIA 2.0 · Automatización inteligente de reservas
+</footer>
+
+<script>
+  function mostrarReserva() {
+    document.getElementById("reserva").style.display = "block";
+    document.getElementById("reserva").scrollIntoView({
+      behavior: "smooth"
+    });
+  }
+
+  function solicitarReserva() {
+    const nombre = document.getElementById("nombre").value;
+    const servicio = document.getElementById("servicio").value;
+    const fecha = document.getElementById("fecha").value;
+    const hora = document.getElementById("hora").value;
+    const respuesta = document.getElementById("respuesta");
+
+    if (!nombre || !servicio || !fecha || !hora) {
+      respuesta.style.display = "block";
+      respuesta.innerHTML =
+        "Por favor completa todos los datos.";
+      return;
+    }
+
+    respuesta.style.display = "block";
+    respuesta.innerHTML =
+      "Solicitud recibida para " + nombre +
+      ". Servicio: " + servicio +
+      ". Fecha: " + fecha +
+      " a las " + hora +
+      ".<br><br>" +
+      "La comprobación real de disponibilidad se conectará " +
+      "con Google Calendar en el siguiente paso.";
+  }
+
+  async function preguntarIA() {
+    const pregunta = document.getElementById("pregunta").value;
+    const respuesta = document.getElementById("respuestaIA");
+
+    if (!pregunta) {
+      respuesta.innerHTML = "Escribe una pregunta.";
+      return;
+    }
+
+    respuesta.innerHTML = "Consultando a ReservaIA...";
+
+    try {
+      const response = await fetch("/api/chat", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          message: pregunta
+        })
+      });
+
+      const data = await response.json();
+
+      respuesta.innerHTML =
+        data.reply || "No se recibió respuesta.";
+    } catch (error) {
+      respuesta.innerHTML =
+        "La IA todavía no está conectada al servidor.";
+    }
+  }
+</script>
+
+</body>
+</html>
