@@ -13,7 +13,12 @@ const CALENDAR_ID =
   process.env.GOOGLE_CALENDAR_ID || "primary";
 const MODEL =
   process.env.OPENAI_MODEL || "gpt-5-mini";
-
+function fingerprint(value) {
+  return crypto
+    .createHash("sha256")
+    .update(value || "")
+    .digest("hex");
+}
 app.use(express.json({ limit: "1mb" }));
 app.use(express.static("public"));
 
@@ -146,8 +151,11 @@ app.get("/auth/google/callback", async (req, res) => {
 );
 
 let freshRefreshTest = "no_refresh_token";
+let freshRefreshFingerprint = "";
 
 if (tokens.refresh_token) {
+  freshRefreshFingerprint =
+    fingerprint(tokens.refresh_token);
   try {
     oauth2.setCredentials({
       refresh_token: tokens.refresh_token
@@ -178,8 +186,7 @@ res.type("text/plain").send(
 
 Refresh token recibido: ${Boolean(tokens.refresh_token)}
 Refresh token recién emitido funciona: ${freshRefreshTest}
-
-GOOGLE_REFRESH_TOKEN=${tokens.refresh_token || ""}`
+Huella del refresh token recién emitido: ${freshRefreshFingerprint}`
 );
   } catch (error) {
     console.error(error);
