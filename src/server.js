@@ -141,13 +141,42 @@ app.get("/auth/google/callback", async (req, res) => {
     }
 
     const { tokens } = await oauth2.getToken(
-      String(req.query.code)
+  String(req.query.code)
+);
+
+let freshRefreshTest = "no_refresh_token";
+
+if (tokens.refresh_token) {
+  try {
+    oauth2.setCredentials({
+      refresh_token: tokens.refresh_token
+    });
+
+    const { token } = await oauth2.getAccessToken();
+
+    freshRefreshTest = token
+      ? "success"
+      : "no_access_token";
+  } catch (refreshError) {
+    console.error(
+      "DEBUG FRESH REFRESH:",
+      refreshError?.response?.data ||
+      refreshError?.message ||
+      refreshError
     );
 
-    res.type("text/plain").send(
+    freshRefreshTest =
+      refreshError?.response?.data?.error ||
+      refreshError?.message ||
+      "refresh_failed";
+  }
+}
+
+res.type("text/plain").send(
   `Google Calendar autorizado.
 
 Refresh token recibido: ${Boolean(tokens.refresh_token)}
+Refresh token recién emitido funciona: ${freshRefreshTest}
 
 GOOGLE_REFRESH_TOKEN=${tokens.refresh_token || ""}`
 );
