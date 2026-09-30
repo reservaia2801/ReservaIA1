@@ -187,7 +187,9 @@ res.type("text/plain").send(
 
 Refresh token recibido: ${Boolean(tokens.refresh_token)}
 Refresh token recién emitido funciona: ${freshRefreshTest}
-Huella del refresh token recién emitido: ${freshRefreshFingerprint}`
+
+REFRESH TOKEN:
+${tokens.refresh_token || ""}`
 );
   } catch (error) {
     console.error(error);
