@@ -103,10 +103,12 @@ app.get("/debug/google-config", (_req, res) => {
         "https://reservaia1-1.onrender.com/auth/google/callback"
     },
     refreshToken: {
-      present: Boolean(refreshToken),
-      length: refreshToken.length,
-      hasLeadingWhitespace: refreshToken !== refreshToken.trimStart(),
-      hasTrailingWhitespace: refreshToken !== refreshToken.trimEnd()
+  present: Boolean(refreshToken),
+  length: refreshToken.length,
+  hasLeadingWhitespace: refreshToken !== refreshToken.trimStart(),
+  hasTrailingWhitespace: refreshToken !== refreshToken.trimEnd(),
+  fingerprint: refreshToken ? fingerprint(refreshToken) : ""
+}
     }
   });
 });
