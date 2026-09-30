@@ -70,7 +70,47 @@ app.get("/health", (_req, res) => {
     timeZone: TIME_ZONE
   });
 });
+app.get("/debug/google-refresh", async (_req, res) => {
+  try {
+    const oauth2 = getOAuthClient();
 
+    if (!oauth2) {
+      return res.status(500).json({
+        ok: false,
+        error: "oauth_not_configured"
+      });
+    }
+
+    const refreshToken = process.env.GOOGLE_REFRESH_TOKEN;
+
+    if (!refreshToken) {
+      return res.status(500).json({
+        ok: false,
+        error: "refresh_token_missing"
+      });
+    }
+
+    oauth2.setCredentials({
+      refresh_token: refreshToken.trim()
+    });
+
+    const { token } = await oauth2.getAccessToken();
+
+    return res.json({
+      ok: Boolean(token),
+      message: token
+        ? "Google aceptó el refresh token."
+        : "Google no devolvió un access token."
+    });
+  } catch (error) {
+    console.error("DEBUG GOOGLE REFRESH:", error);
+
+    return res.status(500).json({
+      ok: false,
+      error: error?.response?.data?.error || error?.message || "refresh_failed"
+    });
+  }
+});
 app.get("/auth/google", (req, res) => {
   const oauth2 = getOAuthClient();
 
