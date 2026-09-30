@@ -112,10 +112,12 @@ app.get("/auth/google/callback", async (req, res) => {
     );
 
     res.type("text/plain").send(
-      `Google Calendar autorizado.
+  `Google Calendar autorizado.
+
+Refresh token recibido: ${Boolean(tokens.refresh_token)}
 
 GOOGLE_REFRESH_TOKEN=${tokens.refresh_token || ""}`
-    );
+);
   } catch (error) {
     console.error(error);
 
