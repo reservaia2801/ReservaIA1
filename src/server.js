@@ -70,46 +70,39 @@ app.get("/health", (_req, res) => {
     timeZone: TIME_ZONE
   });
 });
-app.get("/debug/google-refresh", async (_req, res) => {
-  try {
-    const oauth2 = getOAuthClient();
+app.get("/debug/google-config", (_req, res) => {
+  const clientId = process.env.GOOGLE_CLIENT_ID || "";
+  const clientSecret = process.env.GOOGLE_CLIENT_SECRET || "";
+  const redirectUri = process.env.GOOGLE_REDIRECT_URI || "";
+  const refreshToken = process.env.GOOGLE_REFRESH_TOKEN || "";
 
-    if (!oauth2) {
-      return res.status(500).json({
-        ok: false,
-        error: "oauth_not_configured"
-      });
+  res.json({
+    clientId: {
+      present: Boolean(clientId),
+      length: clientId.length,
+      startsCorrectly: clientId.startsWith("155555631757-"),
+      endsCorrectly: clientId.endsWith(
+        ".apps.googleusercontent.com"
+      )
+    },
+    clientSecret: {
+      present: Boolean(clientSecret),
+      length: clientSecret.length,
+      hasLeadingWhitespace: clientSecret !== clientSecret.trimStart(),
+      hasTrailingWhitespace: clientSecret !== clientSecret.trimEnd()
+    },
+    redirectUri: {
+      value: redirectUri,
+      exact: redirectUri ===
+        "https://reservaia1-1.onrender.com/auth/google/callback"
+    },
+    refreshToken: {
+      present: Boolean(refreshToken),
+      length: refreshToken.length,
+      hasLeadingWhitespace: refreshToken !== refreshToken.trimStart(),
+      hasTrailingWhitespace: refreshToken !== refreshToken.trimEnd()
     }
-
-    const refreshToken = process.env.GOOGLE_REFRESH_TOKEN;
-
-    if (!refreshToken) {
-      return res.status(500).json({
-        ok: false,
-        error: "refresh_token_missing"
-      });
-    }
-
-    oauth2.setCredentials({
-      refresh_token: refreshToken.trim()
-    });
-
-    const { token } = await oauth2.getAccessToken();
-
-    return res.json({
-      ok: Boolean(token),
-      message: token
-        ? "Google aceptó el refresh token."
-        : "Google no devolvió un access token."
-    });
-  } catch (error) {
-    console.error("DEBUG GOOGLE REFRESH:", error);
-
-    return res.status(500).json({
-      ok: false,
-      error: error?.response?.data?.error || error?.message || "refresh_failed"
-    });
-  }
+  });
 });
 app.get("/auth/google", (req, res) => {
   const oauth2 = getOAuthClient();
