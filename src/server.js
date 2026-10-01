@@ -252,9 +252,10 @@ app.post("/api/chat", async (req, res) => {
 
     if (!response.ok) {
       console.error(
-        "Gemini API error:",
-        data?.error?.status || response.status
-      );
+  "Gemini API error:",
+  data?.error?.status || response.status,
+  data?.error?.message || "Sin mensaje adicional"
+);
 
       return res.status(502).json({
         error: "No se pudo consultar la IA."
