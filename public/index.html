@@ -231,30 +231,74 @@
     });
   }
 
-  function solicitarReserva() {
-    const nombre = document.getElementById("nombre").value;
-    const servicio = document.getElementById("servicio").value;
-    const fecha = document.getElementById("fecha").value;
-    const hora = document.getElementById("hora").value;
-    const respuesta = document.getElementById("respuesta");
+  async function solicitarReserva() {
+  const nombre =
+    document.getElementById("nombre").value.trim();
 
-    if (!nombre || !servicio || !fecha || !hora) {
-      respuesta.style.display = "block";
+  const servicio =
+    document.getElementById("servicio").value;
+
+  const fecha =
+    document.getElementById("fecha").value;
+
+  const hora =
+    document.getElementById("hora").value;
+
+  const respuesta =
+    document.getElementById("respuesta");
+
+  if (!nombre || !servicio || !fecha || !hora) {
+    respuesta.style.display = "block";
+    respuesta.innerHTML =
+      "Por favor completa todos los datos.";
+    return;
+  }
+
+  respuesta.style.display = "block";
+  respuesta.innerHTML =
+    "Comprobando disponibilidad...";
+
+  try {
+    const response = await fetch("/api/book", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        name: nombre,
+        service: servicio,
+        date: fecha,
+        time: hora,
+        duration: 60
+      })
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
       respuesta.innerHTML =
-        "Por favor completa todos los datos.";
+        data.error ||
+        "No se pudo crear la reserva.";
       return;
     }
 
-    respuesta.style.display = "block";
     respuesta.innerHTML =
-      "Solicitud recibida para " + nombre +
-      ". Servicio: " + servicio +
-      ". Fecha: " + fecha +
-      " a las " + hora +
-      ".<br><br>" +
-      "La comprobación real de disponibilidad se conectará " +
-      "con Google Calendar en el siguiente paso.";
+      "✅ " + data.message +
+      "<br><br>" +
+      "Cliente: " + nombre +
+      "<br>" +
+      "Servicio: " + servicio +
+      "<br>" +
+      "Fecha: " + fecha +
+      "<br>" +
+      "Hora: " + hora;
+  } catch (error) {
+    console.error(error);
+
+    respuesta.innerHTML =
+      "No se pudo conectar con el servidor.";
   }
+}
 
   async function preguntarIA() {
     const pregunta = document.getElementById("pregunta").value;
