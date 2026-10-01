@@ -210,37 +210,73 @@ app.post("/api/chat", async (req, res) => {
       });
     }
 
-    if (!openai) {
+    const apiKey = process.env.GEMINI_API_KEY;
+
+    if (!apiKey) {
       return res.status(503).json({
-        reply:
-          "La IA todavía no está configurada. " +
-          "Añade OPENAI_API_KEY en Render."
+        reply: "La IA todavía no está configurada."
       });
     }
 
-    const response =
-      await openai.responses.create({
-        model: MODEL,
+    const response = await fetch(
+      "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-goog-api-key": apiKey
+        },
+        body: JSON.stringify({
+          system_instruction: {
+            parts: [{
+              text:
+                "Eres ReservaIA, una asistente virtual " +
+                "de reservas. Responde en español, " +
+                "de forma breve, amable y clara. " +
+                "No inventes disponibilidad. " +
+                "Si necesitas comprobar un horario, " +
+                "indica que debes consultar el calendario. " +
+                "No confirmes reservas: estas deben " +
+                "realizarse mediante el sistema de reservas."
+            }]
+          },
+          contents: [{
+            role: "user",
+            parts: [{ text: message }]
+          }]
+        })
+      }
+    );
 
-        instructions:
-          "Eres ReservaIA, una asistente virtual " +
-          "de reservas. Responde en español, " +
-          "de forma breve, amable y clara. " +
-          "No inventes disponibilidad. " +
-          "Si necesitas comprobar un horario, " +
-          "indica que debes consultar el calendario.",
+    const data = await response.json();
 
-        input: message
+    if (!response.ok) {
+      console.error(
+        "Gemini API error:",
+        data?.error?.status || response.status
+      );
+
+      return res.status(502).json({
+        error: "No se pudo consultar la IA."
       });
+    }
+
+    const reply = (
+      data.candidates?.[0]?.content?.parts || []
+    )
+      .map(part => part.text || "")
+      .join("")
+      .trim();
 
     res.json({
-      reply:
-        response.output_text ||
-        "No pude generar una respuesta."
+      reply: reply || "No pude generar una respuesta."
     });
 
   } catch (error) {
-    console.error("OpenAI error:", error);
+    console.error(
+      "Gemini error:",
+      error?.message || error
+    );
 
     res.status(500).json({
       error: "No se pudo consultar la IA."
