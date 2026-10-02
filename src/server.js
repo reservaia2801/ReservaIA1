@@ -198,58 +198,79 @@ Huella del refresh token recién emitido: ${freshRefreshFingerprint}`
   }
 });
 
-app.post("/api/chat", async (req, res) => {
-  try {
-    const message = String(
-      req.body?.message || ""
-    ).trim();
 
-    if (!message) {
-      return res.status(400).json({
-        error: "message es obligatorio"
-      });
-    }
+    const url =
+      "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent";
 
-    const apiKey = process.env.GEMINI_API_KEY;
+    const payload = {
+      system_instruction: {
+        parts: [{
+          text:
+            "Eres ReservaIA, una asistente virtual " +
+            "de reservas. Responde en español, " +
+            "de forma breve, amable y clara. " +
+            "No inventes disponibilidad. " +
+            "Si necesitas comprobar un horario, " +
+            "indica que debes consultar el calendario. " +
+            "No confirmes reservas: estas deben " +
+            "realizarse mediante el sistema de reservas."
+        }]
+      },
+      contents: [{
+        role: "user",
+        parts: [{ text: message }]
+      }]
+    };
 
-    if (!apiKey) {
-      return res.status(503).json({
-        reply: "La IA todavía no está configurada."
-      });
-    }
+    let response;
+    let data;
 
-    const response = await fetch(
-      "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent",
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "x-goog-api-key": apiKey
-        },
-        body: JSON.stringify({
-          system_instruction: {
-            parts: [{
-              text:
-                "Eres ReservaIA, una asistente virtual " +
-                "de reservas. Responde en español, " +
-                "de forma breve, amable y clara. " +
-                "No inventes disponibilidad. " +
-                "Si necesitas comprobar un horario, " +
-                "indica que debes consultar el calendario. " +
-                "No confirmes reservas: estas deben " +
-                "realizarse mediante el sistema de reservas."
-            }]
+    for (let attempt = 0; attempt < 3; attempt++) {
+      try {
+        response = await fetch(url, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "x-goog-api-key": apiKey
           },
-          contents: [{
-            role: "user",
-            parts: [{ text: message }]
-          }]
-        })
+          body: JSON.stringify(payload),
+          signal: AbortSignal.timeout(30000)
+        });
+
+        data = await response.json();
+
+        if (response.ok) {
+          break;
+        }
+
+        const retryable =
+          response.status === 429 ||
+          response.status === 500 ||
+          response.status === 502 ||
+          response.status === 503 ||
+          response.status === 504;
+
+        if (!retryable || attempt === 2) {
+          break;
+        }
+      } catch (error) {
+        if (attempt === 2) {
+          throw error;
+        }
       }
-    );
 
-    const data = await response.json();
+      await new Promise(resolve =>
+        setTimeout(resolve, 1500 * (attempt + 1))
+      );
+    }
 
+
+    
+if (!response) {
+  return res.status(502).json({
+    error: "Gemini no respondió. Intenta nuevamente."
+  });
+}
     if (!response.ok) {
       console.error(
   "Gemini API error:",
