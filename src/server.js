@@ -383,47 +383,195 @@ app.post("/api/chat", async (req, res) => {
     };
 
     const fechaMatch = message.match(
-      /(\d{1,2})\s+de\s+(enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|setiembre|octubre|noviembre|diciembre)\s+de\s+(\d{4})/i
+  /(\d{1,2})\s+de\s+(enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|setiembre|octubre|noviembre|diciembre)\s+de\s+(\d{4})/i
+);
+
+const mensajeNormalizado =
+  message.toLowerCase();
+
+let fecha;
+
+if (
+  mensajeNormalizado.includes(
+    "pasado mañana"
+  )
+) {
+  const partes =
+    new Intl.DateTimeFormat(
+      "en-CA",
+      {
+        timeZone:
+          "America/Argentina/Buenos_Aires",
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit"
+      }
+    )
+      .formatToParts(new Date());
+
+  const año =
+    partes.find(
+      parte => parte.type === "year"
+    ).value;
+
+  const mes =
+    partes.find(
+      parte => parte.type === "month"
+    ).value;
+
+  const dia =
+    partes.find(
+      parte => parte.type === "day"
+    ).value;
+
+  const fechaBase =
+    new Date(
+      `${año}-${mes}-${dia}T12:00:00Z`
     );
 
-    let disponibilidadTexto =
-      "No se proporcionó una fecha concreta. " +
-      "Si el usuario pregunta por disponibilidad, " +
-      "pídele que indique una fecha.";
+  fechaBase.setUTCDate(
+    fechaBase.getUTCDate() + 2
+  );
 
-    if (fechaMatch) {
-      const dia =
-        fechaMatch[1].padStart(2, "0");
+  fecha =
+    `${fechaBase.getUTCFullYear()}-` +
+    `${String(
+      fechaBase.getUTCMonth() + 1
+    ).padStart(2, "0")}-` +
+    `${String(
+      fechaBase.getUTCDate()
+    ).padStart(2, "0")}`;
 
-      const mes =
-        meses[
-          fechaMatch[2].toLowerCase()
-        ];
-
-      const año =
-        fechaMatch[3];
-
-      const fecha =
-        `${año}-${mes}-${dia}`;
-
-      const disponibles =
-        await getAvailableSlots(
-          fecha,
-          60
-        );
-
-      if (disponibles.length > 0) {
-        disponibilidadTexto =
-          `Para el ${dia}/${mes}/${año}, ` +
-          `los horarios disponibles reales son: ` +
-          disponibles.join(", ") +
-          ".";
-      } else {
-        disponibilidadTexto =
-          `Para el ${dia}/${mes}/${año} ` +
-          `no hay horarios disponibles.`;
+} else if (
+  mensajeNormalizado.includes(
+    "mañana"
+  )
+) {
+  const partes =
+    new Intl.DateTimeFormat(
+      "en-CA",
+      {
+        timeZone:
+          "America/Argentina/Buenos_Aires",
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit"
       }
-    }
+    )
+      .formatToParts(new Date());
+
+  const año =
+    partes.find(
+      parte => parte.type === "year"
+    ).value;
+
+  const mes =
+    partes.find(
+      parte => parte.type === "month"
+    ).value;
+
+  const dia =
+    partes.find(
+      parte => parte.type === "day"
+    ).value;
+
+  const fechaBase =
+    new Date(
+      `${año}-${mes}-${dia}T12:00:00Z`
+    );
+
+  fechaBase.setUTCDate(
+    fechaBase.getUTCDate() + 1
+  );
+
+  fecha =
+    `${fechaBase.getUTCFullYear()}-` +
+    `${String(
+      fechaBase.getUTCMonth() + 1
+    ).padStart(2, "0")}-` +
+    `${String(
+      fechaBase.getUTCDate()
+    ).padStart(2, "0")}`;
+
+} else if (
+  mensajeNormalizado.includes("hoy")
+) {
+  const partes =
+    new Intl.DateTimeFormat(
+      "en-CA",
+      {
+        timeZone:
+          "America/Argentina/Buenos_Aires",
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit"
+      }
+    )
+      .formatToParts(new Date());
+
+  const año =
+    partes.find(
+      parte => parte.type === "year"
+    ).value;
+
+  const mes =
+    partes.find(
+      parte => parte.type === "month"
+    ).value;
+
+  const dia =
+    partes.find(
+      parte => parte.type === "day"
+    ).value;
+
+  fecha =
+    `${año}-${mes}-${dia}`;
+
+} else if (fechaMatch) {
+
+
+  const dia =
+    fechaMatch[1].padStart(2, "0");
+
+  const mes =
+    meses[
+      fechaMatch[2].toLowerCase()
+    ];
+
+  const año =
+    fechaMatch[3];
+
+  fecha =
+    `${año}-${mes}-${dia}`;
+}
+
+let disponibilidadTexto =
+  "No se proporcionó una fecha concreta. " +
+  "Si el usuario pregunta por disponibilidad, " +
+  "pídele que indique una fecha.";
+
+if (fecha) {
+  const [año, mes, dia] =
+    fecha.split("-");
+
+  const disponibles =
+    await getAvailableSlots(
+      fecha,
+      60
+    );
+
+  if (disponibles.length > 0) {
+    disponibilidadTexto =
+      `Para el ${dia}/${mes}/${año}, ` +
+      `los horarios disponibles reales son: ` +
+      disponibles.join(", ") +
+      ".";
+  } else {
+    disponibilidadTexto =
+      `Para el ${dia}/${mes}/${año} ` +
+      `no hay horarios disponibles.`;
+  }
+}
 
     const url =
       "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite:generateContent";
