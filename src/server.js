@@ -198,92 +198,6 @@ Huella del refresh token recién emitido: ${freshRefreshFingerprint}`
   }
 });
 
-app.post("/api/chat", async (req, res) => {
-  try {
-    const message = String(
-      req.body?.message || ""
-    ).trim();
-
-    if (!message) {
-      return res.status(400).json({
-        error: "message es obligatorio"
-      });
-    }
-
-    const apiKey = process.env.GEMINI_API_KEY;
-
-    if (!apiKey) {
-      return res.status(503).json({
-        reply: "La IA todavía no está configurada."
-      });
-    }
-
-    const response = await fetch(
-      "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent",
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "x-goog-api-key": apiKey
-        },
-        body: JSON.stringify({
-          system_instruction: {
-            parts: [{
-              text:
-                "Eres ReservaIA, una asistente virtual " +
-                "de reservas. Responde en español, " +
-                "de forma breve, amable y clara. " +
-                "No inventes disponibilidad. " +
-                "Si necesitas comprobar un horario, " +
-                "indica que debes consultar el calendario. " +
-                "No confirmes reservas: estas deben " +
-                "realizarse mediante el sistema de reservas."
-            }]
-          },
-          contents: [{
-            role: "user",
-            parts: [{ text: message }]
-          }]
-        })
-      }
-    );
-
-    const data = await response.json();
-
-    if (!response.ok) {
-      console.error(
-        "Gemini API error:",
-        data?.error?.status || response.status
-      );
-
-      return res.status(502).json({
-        error: "No se pudo consultar la IA."
-      });
-    }
-
-    const reply = (
-      data.candidates?.[0]?.content?.parts || []
-    )
-      .map(part => part.text || "")
-      .join("")
-      .trim();
-
-    res.json({
-      reply: reply || "No pude generar una respuesta."
-    });
-
-  } catch (error) {
-    console.error(
-      "Gemini error:",
-      error?.message || error
-    );
-
-    res.status(500).json({
-      error: "No se pudo consultar la IA."
-    });
-  }
-});
-
 function parseDateTime(date, time) {
   if (
     !/^\d{4}-\d{2}-\d{2}$/.test(date) ||
@@ -387,6 +301,130 @@ app.get(
   }
 );
 
+app.post("/api/chat", async (req, res) => {
+  try {
+    const message = String(
+      req.body?.message || ""
+    ).trim();
+
+    if (!message) {
+      return res.status(400).json({
+        error: "message es obligatorio"
+      });
+    }
+
+    const apiKey = process.env.GEMINI_API_KEY;
+
+    if (!apiKey) {
+      return res.status(503).json({
+        reply: "La IA todavía no está configurada."
+      });
+    }
+
+    const url =
+      "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent";
+
+    const payload = {
+      system_instruction: {
+        parts: [{
+          text:
+            "Eres ReservaIA, una asistente virtual " +
+            "de reservas. Responde en español, " +
+            "de forma breve, amable y clara. " +
+            "No inventes disponibilidad. " +
+            "Si necesitas comprobar un horario, " +
+            "indica que debes consultar el calendario. " +
+            "No confirmes reservas: estas deben " +
+            "realizarse mediante el sistema de reservas."
+        }]
+      },
+      contents: [{
+        role: "user",
+        parts: [{ text: message }]
+      }]
+    };
+
+    let response;
+    let data;
+
+    for (let attempt = 0; attempt < 3; attempt++) {
+      try {
+        response = await fetch(url, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "x-goog-api-key": apiKey
+          },
+          body: JSON.stringify(payload),
+          signal: AbortSignal.timeout(30000)
+        });
+
+        data = await response.json();
+
+        if (response.ok) {
+          break;
+        }
+
+        const retryable =
+          [429, 500, 502, 503, 504].includes(
+            response.status
+          );
+
+        if (!retryable || attempt === 2) {
+          break;
+        }
+      } catch (error) {
+        if (attempt === 2) {
+          throw error;
+        }
+      }
+
+      await new Promise(resolve =>
+        setTimeout(resolve, 1500 * (attempt + 1))
+      );
+    }
+
+    if (!response) {
+      return res.status(502).json({
+        error: "Gemini no respondió. Intenta nuevamente."
+      });
+    }
+
+    if (!response.ok) {
+  console.error(
+    "Gemini API error:",
+    JSON.stringify(data)
+  );
+
+  return res.status(502).json({
+    error: "Gemini rechazó la solicitud.",
+    status: response.status,
+    detail: data?.error?.message || "Sin mensaje adicional"
+  });
+}
+
+   const reply = (
+      data.candidates?.[0]?.content?.parts || []
+    )
+      .map(part => part.text || "")
+      .join("")
+      .trim();
+
+    res.json({
+      reply: reply || "No pude generar una respuesta."
+    });
+
+  } catch (error) {
+    console.error(
+      "Gemini error:",
+      error?.message || error
+    );
+
+    res.status(500).json({
+      error: "No se pudo consultar la IA."
+    });
+  }
+});
 app.post(
   "/api/book",
   async (req, res) => {
