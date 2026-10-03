@@ -240,7 +240,50 @@ async function isSlotFree(
     (result.data.items || []).length === 0
   );
 }
+async function getAvailableSlots(date, duration = 60) {
+  const calendar = getCalendarClient();
 
+  if (!calendar) {
+    throw new Error(
+      "Google Calendar todavía no está configurado."
+    );
+  }
+
+  const horarios = [
+    "10:00",
+    "11:00",
+    "12:00",
+    "14:00",
+    "15:00",
+    "16:00",
+    "17:00",
+    "18:00"
+  ];
+
+  const disponibles = [];
+
+  for (const time of horarios) {
+    const start = parseDateTime(date, time);
+
+    const end = new Date(
+      start.getTime() +
+        duration * 60000
+    );
+
+    const free =
+      await isSlotFree(
+        calendar,
+        start,
+        end
+      );
+
+    if (free) {
+      disponibles.push(time);
+    }
+  }
+
+  return disponibles;
+}
 app.get(
   "/api/availability",
   async (req, res) => {
@@ -313,12 +356,73 @@ app.post("/api/chat", async (req, res) => {
       });
     }
 
-    const apiKey = process.env.GEMINI_API_KEY;
+    const apiKey =
+      process.env.GEMINI_API_KEY;
 
     if (!apiKey) {
       return res.status(503).json({
-        reply: "La IA todavía no está configurada."
+        reply:
+          "La IA todavía no está configurada."
       });
+    }
+
+    const meses = {
+      enero: "01",
+      febrero: "02",
+      marzo: "03",
+      abril: "04",
+      mayo: "05",
+      junio: "06",
+      julio: "07",
+      agosto: "08",
+      septiembre: "09",
+      setiembre: "09",
+      octubre: "10",
+      noviembre: "11",
+      diciembre: "12"
+    };
+
+    const fechaMatch = message.match(
+      /(\d{1,2})\s+de\s+(enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|setiembre|octubre|noviembre|diciembre)\s+de\s+(\d{4})/i
+    );
+
+    let disponibilidadTexto =
+      "No se proporcionó una fecha concreta. " +
+      "Si el usuario pregunta por disponibilidad, " +
+      "pídele que indique una fecha.";
+
+    if (fechaMatch) {
+      const dia =
+        fechaMatch[1].padStart(2, "0");
+
+      const mes =
+        meses[
+          fechaMatch[2].toLowerCase()
+        ];
+
+      const año =
+        fechaMatch[3];
+
+      const fecha =
+        `${año}-${mes}-${dia}`;
+
+      const disponibles =
+        await getAvailableSlots(
+          fecha,
+          60
+        );
+
+      if (disponibles.length > 0) {
+        disponibilidadTexto =
+          `Para el ${dia}/${mes}/${año}, ` +
+          `los horarios disponibles reales son: ` +
+          disponibles.join(", ") +
+          ".";
+      } else {
+        disponibilidadTexto =
+          `Para el ${dia}/${mes}/${año} ` +
+          `no hay horarios disponibles.`;
+      }
     }
 
     const url =
@@ -331,97 +435,145 @@ app.post("/api/chat", async (req, res) => {
             "Eres ReservaIA, una asistente virtual " +
             "de reservas. Responde en español, " +
             "de forma breve, amable y clara. " +
-            "No inventes disponibilidad. " +
-            "Si necesitas comprobar un horario, " +
-            "indica que debes consultar el calendario. " +
-            "No confirmes reservas: estas deben " +
-            "realizarse mediante el sistema de reservas."
+            "Nunca inventes disponibilidad. " +
+            "Utiliza únicamente la información real " +
+            "del calendario proporcionada abajo. " +
+            "No confirmes reservas: las reservas deben " +
+            "realizarse mediante el sistema de reservas.\n\n" +
+            "INFORMACIÓN REAL DEL CALENDARIO:\n" +
+            disponibilidadTexto
         }]
       },
+
       contents: [{
         role: "user",
-        parts: [{ text: message }]
+        parts: [{
+          text: message
+        }]
       }]
     };
 
     let response;
     let data;
 
-    for (let attempt = 0; attempt < 3; attempt++) {
+    for (
+      let attempt = 0;
+      attempt < 3;
+      attempt++
+    ) {
       try {
-        response = await fetch(url, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "x-goog-api-key": apiKey
-          },
-          body: JSON.stringify(payload),
-          signal: AbortSignal.timeout(30000)
-        });
+        response = await fetch(
+          url,
+          {
+            method: "POST",
 
-        data = await response.json();
+            headers: {
+              "Content-Type":
+                "application/json",
+              "x-goog-api-key":
+                apiKey
+            },
+
+            body:
+              JSON.stringify(payload),
+
+            signal:
+              AbortSignal.timeout(30000)
+          }
+        );
+
+        data =
+          await response.json();
 
         if (response.ok) {
           break;
         }
 
         const retryable =
-          [429, 500, 502, 503, 504].includes(
+          [
+            429,
+            500,
+            502,
+            503,
+            504
+          ].includes(
             response.status
           );
 
-        if (!retryable || attempt === 2) {
+        if (
+          !retryable ||
+          attempt === 2
+        ) {
           break;
         }
+
       } catch (error) {
         if (attempt === 2) {
           throw error;
         }
       }
 
-      await new Promise(resolve =>
-        setTimeout(resolve, 1500 * (attempt + 1))
+      await new Promise(
+        resolve =>
+          setTimeout(
+            resolve,
+            1500 *
+              (attempt + 1)
+          )
       );
     }
 
     if (!response) {
       return res.status(502).json({
-        error: "Gemini no respondió. Intenta nuevamente."
+        error:
+          "Gemini no respondió. Intenta nuevamente."
       });
     }
 
     if (!response.ok) {
-  console.error(
-    "Gemini API error:",
-    JSON.stringify(data)
-  );
+      console.error(
+        "Gemini API error:",
+        JSON.stringify(data)
+      );
 
-  return res.status(502).json({
-    error: "Gemini rechazó la solicitud.",
-    status: response.status,
-    detail: data?.error?.message || "Sin mensaje adicional"
-  });
-}
+      return res.status(502).json({
+        error:
+          "Gemini rechazó la solicitud.",
+        status:
+          response.status,
+        detail:
+          data?.error?.message ||
+          "Sin mensaje adicional"
+      });
+    }
 
-   const reply = (
-      data.candidates?.[0]?.content?.parts || []
+    const reply = (
+      data.candidates?.[0]
+        ?.content?.parts || []
     )
-      .map(part => part.text || "")
+      .map(
+        part =>
+          part.text || ""
+      )
       .join("")
       .trim();
 
     res.json({
-      reply: reply || "No pude generar una respuesta."
+      reply:
+        reply ||
+        "No pude generar una respuesta."
     });
 
   } catch (error) {
     console.error(
       "Gemini error:",
-      error?.message || error
+      error?.message ||
+        error
     );
 
     res.status(500).json({
-      error: "No se pudo consultar la IA."
+      error:
+        "No se pudo consultar la IA."
     });
   }
 });
